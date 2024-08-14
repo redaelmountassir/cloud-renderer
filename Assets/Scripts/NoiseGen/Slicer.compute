@@ -1,0 +1,14 @@
+﻿#pragma kernel Slice
+#define numThreads 32
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+
+Texture3D<float4> volumeTexture;
+RWTexture2D<half4> slice;
+int layer;
+
+[numthreads(numThreads, numThreads, 1)]
+void Slice(uint3 id : SV_DispatchThreadID)
+{
+    uint3 pos = uint3(id.xy, layer);
+    slice[id.xy] = volumeTexture[pos];
+}

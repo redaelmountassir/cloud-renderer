@@ -1,0 +1,90 @@
+﻿#pragma kernel WorleyCompute
+#pragma kernel PerlinWorleyCompute
+#pragma kernel Clear
+#define numThreads 8
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+#include "Assets/Scripts/NoiseGen/Noise.compute"
+
+RWTexture3D<float4> result;
+struct NoiseSettings
+{
+    int seed;
+    uint scale;
+    uint octaves;
+    float lacunarity;
+    float persistance;
+    int invert;
+};
+CBUFFER_START(textureSettings)
+    //Texture variables
+    bool4 writeMask;
+    int resolution;
+    int tileAmount;
+    //Noise variables
+    StructuredBuffer<NoiseSettings> noiseSettings;
+    float perlinWorleyPersistence;
+CBUFFER_END
+
+inline float4 WriteValue(half4 color, half newVal, bool4 writeMask)
+{
+    return color * (!writeMask) + newVal * (writeMask);
+}
+
+[numthreads(numThreads, numThreads, numThreads)]
+void WorleyCompute(uint3 UVW : SV_DispatchThreadID)
+{
+    //sampling position in meters; sampling meter by meter by meter cube. To tile use modulo on UVW
+    float3 samplePos = ((float3)UVW / resolution * tileAmount) % 1;
+    
+    float noiseVal = TileWorley3D(samplePos,
+        noiseSettings[0].scale,
+        noiseSettings[0].octaves, 
+        noiseSettings[0].persistance,
+        noiseSettings[0].lacunarity, 
+        noiseSettings[0].seed);
+
+    //Invert colors
+    noiseVal = abs(noiseSettings[0].invert - noiseVal);
+
+    //Set texture
+    result[UVW] = WriteValue(result[UVW], noiseVal, writeMask);
+}
+
+[numthreads(numThreads, numThreads, numThreads)]
+void PerlinWorleyCompute(uint3 UVW : SV_DispatchThreadID)
+{
+    //sampling position in meters; sampling meter by meter by meter cube. To tile use modulo on UVW
+    float3 samplePos = ((float3)UVW / resolution * tileAmount) % 1;
+
+    //Get individual noise vals
+    float worleyVal = TileWorley3D(samplePos,
+        noiseSettings[0].scale,
+        noiseSettings[0].octaves,
+        noiseSettings[0].persistance,
+        noiseSettings[0].lacunarity, 
+        noiseSettings[0].seed);
+    float perlinVal = TilePerlin3D(samplePos,
+        noiseSettings[1].scale,
+        noiseSettings[1].octaves,
+        noiseSettings[1].persistance,
+        noiseSettings[1].lacunarity,
+        noiseSettings[1].seed) + .5;
+
+    //Invert colors
+    worleyVal = abs(noiseSettings[0].invert - worleyVal);
+    perlinVal = abs(noiseSettings[1].invert - perlinVal);
+
+    //Combine and then normalize (perlinVal first because it should contribute the most to the shape)
+    float noiseVal = perlinVal + worleyVal * perlinWorleyPersistence;
+    noiseVal /= 1 + perlinWorleyPersistence;
+
+    //Set texture
+    result[UVW] = WriteValue(result[UVW], noiseVal, writeMask);
+}
+
+[numthreads(numThreads, numThreads, numThreads)]
+void Clear(uint3 UVW : SV_DispatchThreadID)
+{
+    //Set texture
+    result[UVW] = WriteValue(result[UVW], 0, writeMask);
+}

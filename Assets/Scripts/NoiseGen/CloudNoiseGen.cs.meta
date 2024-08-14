@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: e665aed79e25b644ca90e1e13c5d76d8
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - m_ViewDataDictionary: {instanceID: 0}
+  - cloudNoiseShader: {fileID: 7200000, guid: bab9133528deb744d89fb6577332f1e1, type: 3}
+  - slicerShader: {fileID: 7200000, guid: dc1dfa25cc8ac424295dc92856deec9f, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

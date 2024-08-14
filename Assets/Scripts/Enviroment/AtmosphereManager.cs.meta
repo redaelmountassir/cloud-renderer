@@ -1,0 +1,13 @@
+fileFormatVersion: 2
+guid: 90663fc308659b246825cfced8bff1f0
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - cloudNoise: {fileID: 11400000, guid: 6633a92c5fc69f44581efe6f39595fde, type: 2}
+  - lightningMaterial: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

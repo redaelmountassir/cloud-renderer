@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 0}
+  m_Name: Keyboard
+  m_EditorClassIdentifier: Assembly-CSharp::InputManager/InputPreset
+  moveDirMode: 0
+  forward: 1101000077000000
+  backward: 1201000073000000
+  strafeLeft: 1401000061000000
+  strafeRight: 1301000064000000
+  axisX: 
+  axisY: 
+  sensitivity: 100
+  viewAxisX: Mouse X
+  viewAxisY: Mouse Y
+  jump: 32
+  sprint: 2f01000030010000
+  crouch: 3101000032010000
+  zoom: 122
+  settings: 9
+  inventory: 105
+  inventorySlot1: 3100000001010000
+  inventorySlot2: 3200000002010000
+  inventorySlot3: 3300000003010000
+  inventorySlot4: 3400000004010000
+  inventorySlot5: 3500000005010000
+  inventorySlot6: 3600000006010000
+  inventorySlot7: 3700000007010000
+  use: 323
+  interact: 324
+  throwItem: 101
+  exitMenu: 27

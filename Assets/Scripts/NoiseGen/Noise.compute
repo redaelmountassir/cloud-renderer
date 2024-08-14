@@ -1,0 +1,464 @@
+﻿/*
+          _   _       _
+         | \ | | ___ (_)___  ___
+  _____  |  \| |/ _ \| / __|/ _ \  _____
+ |_____| | |\  | (_) | \__ \  __/ |_____|
+         |_| \_|\___/|_|___/\___|
+
+*/
+
+#ifndef NOISE
+#define NOISE
+/*
+  _   _           __       _   _____
+ | | | |___  ___ / _|_   _| | |  ___|   _ _ __   ___ ___
+ | | | / __|/ _ \ |_| | | | | | |_ | | | | '_ \ / __/ __|
+ | |_| \__ \  __/  _| |_| | | |  _|| |_| | | | | (__\__ \
+  \___/|___/\___|_|  \__,_|_| |_|   \__,_|_| |_|\___|___/
+
+*/
+inline float smooth(float t) {
+    return t * t * t * (t * (t * 6 - 15) + 10);
+}
+inline float neg2PosRange(float zero2OneRange)
+{
+    return zero2OneRange * 2 - 1;
+}
+
+
+/*
+ __        ___     _ _         _   _       _
+ \ \      / / |__ (_) |_ ___  | \ | | ___ (_)___  ___
+  \ \ /\ / /| '_ \| | __/ _ \ |  \| |/ _ \| / __|/ _ \
+   \ V  V / | | | | | ||  __/ | |\  | (_) | \__ \  __/
+    \_/\_/  |_| |_|_|\__\___| |_| \_|\___/|_|___/\___|
+
+*/
+//to 1d functions
+float rand1d(float3 value, float3 dotDir = float3(12.9898, 78.233, 37.719)) {
+    //make value smaller to avoid artefacts
+    float3 smallValue = sin(value);
+    //get scalar value from 3d vector
+    float random = dot(smallValue, dotDir);
+    //make value more random by making it bigger and then taking the factional part
+    random = frac(sin(random) * 143758.5453);
+    return random;
+}
+float rand1d(float2 value, float2 dotDir = float2(12.9898, 78.233)) {
+    float2 smallValue = sin(value);
+    float random = dot(smallValue, dotDir);
+    random = frac(sin(random) * 143758.5453);
+    return random;
+}
+float rand1d(float value, float mutator = 0.546) {
+    float random = frac(sin(value + mutator) * 143758.5453);
+    return random;
+}
+//to 2d functions
+float2 rand2d(float3 value) {
+    return float2(
+        rand1d(value, float3(12.989, 78.233, 37.719)),
+        rand1d(value, float3(39.346, 11.135, 83.155))
+        );
+}
+float2 rand2d(float2 value) {
+    return float2(
+        rand1d(value, float2(12.989, 78.233)),
+        rand1d(value, float2(39.346, 11.135))
+        );
+}
+float2 rand2d(float value) {
+    return float2(
+        rand1d(value, 3.9812),
+        rand1d(value, 7.1536)
+        );
+}
+//to 3d functions
+float3 rand3d(float3 value) {
+    return float3(
+        rand1d(value, float3(12.989, 78.233, 37.719)),
+        rand1d(value, float3(39.346, 11.135, 83.155)),
+        rand1d(value, float3(73.156, 52.235, 09.151))
+        );
+}
+float3 rand3d(float2 value) {
+    return float3(
+        rand1d(value, float2(12.989, 78.233)),
+        rand1d(value, float2(39.346, 11.135)),
+        rand1d(value, float2(73.156, 52.235))
+        );
+}
+float3 rand3d(float value) {
+    return float3(
+        rand1d(value, 3.9812),
+        rand1d(value, 7.1536),
+        rand1d(value, 5.7241)
+        );
+}
+//Random point in unit circle
+#define TWO_PI 6.2831
+float2 randUnitCircle(float2 UV) {
+    float a = rand1d(UV) * 6.2831;
+    float r = sqrt(rand1d(UV + a));
+
+    //Cartesian coordinates
+    return r * float2(cos(a), sin(a));
+}
+
+
+/*
+ __        __         _              _   _       _
+ \ \      / /__  _ __| | ___ _   _  | \ | | ___ (_)___  ___
+  \ \ /\ / / _ \| '__| |/ _ \ | | | |  \| |/ _ \| / __|/ _ \
+   \ V  V / (_) | |  | |  __/ |_| | | |\  | (_) | \__ \  __/
+    \_/\_/ \___/|_|  |_|\___|\__, | |_| \_|\___/|_|___/\___|
+                             |___/
+*/
+//Not infinite - Ment to create one use tileable tex
+float TileWorley3D(float3 UVW, uint scale, out float3 position, out float3 color, int seed = 0)
+{
+    //Get the cell the samplePos is in
+    int3 baseIndex = floor(UVW * scale);
+
+    //variable that will be used to calc the pixels distance
+    float closestSqrDst = 1;
+    int3 closestCell;
+
+    //Loop over all 27 adjacent cells
+    [unroll]
+    for (int x = -1; x <= 1; x++) {
+        [unroll]
+        for (int y = -1; y <= 1; y++) {
+            [unroll]
+            for (int z = -1; z <= 1; z++)
+            {
+                //Get the index of the adjacent cell. Modulo wraps index. Flatten the index for one dimensional array
+                int3 adjIndex = baseIndex + int3(x, y, z);
+                uint3 tiledIndex = (adjIndex + scale) % (uint3)scale;
+
+                float3 pointPosition = (adjIndex + rand3d((float3)tiledIndex + seed)) / scale;
+
+                //square distance from adj
+                float3 offset = pointPosition - UVW;
+                float sqrDst = dot(offset, offset);
+
+                //Change the variables if the value is smaller
+                bool closer = sqrDst < closestSqrDst;
+                closestSqrDst = lerp(closestSqrDst, sqrDst, closer);
+                closestCell = lerp(closestCell, tiledIndex, closer);
+            }
+        }
+    }
+
+    position = closestCell;
+    color = rand3d(position);
+    //apply square root for mathematical distance and multiply be cell distance to get a distance that is close to normalized
+    return sqrt(closestSqrDst) * scale;
+}
+float TileWorley3D(float3 UVW, uint scale, int seed = 0)
+{
+    //Get the cell the samplePos is in
+    int3 baseIndex = floor(UVW * scale);
+
+    //variable that will be used to calc the pixels distance
+    float closestSqrDst = 1;
+
+    //Loop over all 27 adjacent cells
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            for (int z = -1; z <= 1; z++)
+            {
+                //Get the index of the adjacent cell. Modulo wraps index. Flatten the index for one dimensional array
+                int3 adjIndex = baseIndex + int3(x, y, z);
+                uint3 tiledIndex = (adjIndex + scale) % (uint3)scale;
+
+                float3 pointPosition = (adjIndex + rand3d((float3)tiledIndex + seed)) / scale;
+
+                //square distance from adj
+                float3 offset =  pointPosition - UVW;
+                float sqrDst = dot(offset, offset);
+
+                //Change the variables if the value is smaller
+                bool closer = sqrDst < closestSqrDst;
+                closestSqrDst = lerp(closestSqrDst, sqrDst, closer);
+            }
+        }
+    }
+
+    //apply square root for mathematical distance and multiply be cell distance to get a distance that is close to normalized
+    return sqrt(closestSqrDst) * scale;
+}
+//Infinitely sampleable
+float Worley3D(float3 UVW, out float3 position, out float3 color, int seed = 0)
+{
+    //Get the cell the samplePos is in
+    int3 baseIndex = floor(UVW);
+
+    //variable that will be used to calc the pixels distance
+    float closestSqrDst = 1;
+    int3 closestCell;
+
+    //Loop over all 27 adjacent cells
+    [unroll]
+    for (int x = -1; x <= 1; x++) {
+        [unroll]
+        for (int y = -1; y <= 1; y++) {
+            [unroll]
+            for (int z = -1; z <= 1; z++)
+            {
+                //Get the index of the adjacent cell. Modulo wraps index. Flatten the index for one dimensional array
+                int3 adjIndex = baseIndex + int3(x, y, z);
+                float3 pointPosition = adjIndex + rand3d((float3)adjIndex + seed);
+
+                //square distance from adj
+                float3 offset = UVW - pointPosition;
+                float sqrDst = dot(offset, offset);
+
+                //Change the variables if the value is smaller
+                bool closer = sqrDst < closestSqrDst;
+                closestSqrDst = lerp(closestSqrDst, sqrDst, closer);
+                closestCell = lerp(closestCell, adjIndex, closer);
+            }
+        }
+    }
+
+    position = closestCell;
+    color = rand3d(position);
+    //apply square root for mathematical distance and multiply be cell distance to get a distance that is close to normalized
+    return sqrt(closestSqrDst);
+}
+//Octaves versions
+float TileWorley3D(float3 UVW, uint scale, uint octaves, float persistance, float lacunarity, int seed = 0)
+{
+    //The final value before remapping to range 0 to 1
+    float noiseSum = 0;
+    //The strength of the current octave
+    float amplitude = 1;
+    //The frequency of the the current octave
+    float frequency = 1;
+    //Stores the largest value possible in the noise
+    float maxVal = 0;
+
+    //Loop through each octave (layer)
+    for (uint octave = 0; octave < octaves; octave++)
+    {
+        //Sample noise and change values accordingly
+        noiseSum += TileWorley3D(UVW, scale * frequency, seed + rand1d(octave)) * amplitude;
+        maxVal += amplitude;
+        amplitude *= persistance;
+        frequency *= lacunarity;
+    }
+    //Divide by maxVal to remap values to expected range
+    return noiseSum / maxVal;
+}
+
+/*
+  ____           _ _         _   _       _
+ |  _ \ ___ _ __| (_)_ __   | \ | | ___ (_)___  ___
+ | |_) / _ \ '__| | | '_ \  |  \| |/ _ \| / __|/ _ \
+ |  __/  __/ |  | | | | | | | |\  | (_) | \__ \  __/
+ |_|   \___|_|  |_|_|_| |_| |_| \_|\___/|_|___/\___|
+
+*/
+float TilePerlin3D(float3 UVW, uint scale, int seed = 0)
+{
+    UVW *= scale;
+
+    //Does the same thing as the other dimension versions but in a loop to make code cleaner (loop will be unrolled anyway)
+    //Get the percentage distance (0 - 1) between the next and prev cell (on the x, y, and z)
+    float3 pointOffset = frac(UVW);
+
+    //Get values to interpolate with on the x, y, and z
+    float interpolatorX = smooth(pointOffset.x);
+    float interpolatorY = smooth(pointOffset.y);
+    float interpolatorZ = smooth(pointOffset.z);
+
+    /* 
+        1) loop through all the cells in the z, y, and x
+        2) get a random direction for that cell between -1 and 1
+        3) create a vector that is based off of the percentage distance from that cell
+        4) get the dot product of those vectors and lerp them to get a smooth value
+    */
+    float cellNoiseZ[2];
+    [unroll]
+    for (int z = 0; z <= 1; z++) {
+        float cellNoiseY[2];
+        [unroll]
+        for (int y = 0; y <= 1; y++) {
+            float cellNoiseX[2];
+            [unroll]
+            for (int x = 0; x <= 1; x++) {
+                float3 cell = floor(UVW) + float3(x, y, z);
+                float3 cellDirection = rand3d((cell + scale + seed) % scale) * 2 - 1;
+                float3 compareVector = pointOffset - float3(x, y, z);
+                cellNoiseX[x] = dot(cellDirection, compareVector);
+            }
+            cellNoiseY[y] = lerp(cellNoiseX[0], cellNoiseX[1], interpolatorX);
+        }
+        cellNoiseZ[z] = lerp(cellNoiseY[0], cellNoiseY[1], interpolatorY);
+    }
+    return lerp(cellNoiseZ[0], cellNoiseZ[1], interpolatorZ);
+}
+float Perlin3D(float3 UVW, int seed = 0)
+{
+    //Does the same thing as the other dimension versions but in a loop to make code cleaner (loop will be unrolled anyway)
+    //Get the percentage distance (0 - 1) between the next and prev cell (on the x, y, and z)
+    float3 pointOffset = frac(UVW);
+
+    //Get values to interpolate with on the x, y, and z
+    float interpolatorX = smooth(pointOffset.x);
+    float interpolatorY = smooth(pointOffset.y);
+    float interpolatorZ = smooth(pointOffset.z);
+
+    /*
+        1) loop through all the cells in the z, y, and x
+        2) get a random direction for that cell between -1 and 1
+        3) create a vector that is based off of the percentage distance from that cell
+        4) get the dot product of those vectors and lerp them to get a smooth value
+    */
+    float cellNoiseZ[2];
+    [unroll]
+    for (int z = 0; z <= 1; z++) {
+        float cellNoiseY[2];
+        [unroll]
+        for (int y = 0; y <= 1; y++) {
+            float cellNoiseX[2];
+            [unroll]
+            for (int x = 0; x <= 1; x++) {
+                float3 cell = floor(UVW) + float3(x, y, z);
+                float3 cellDirection = rand3d(cell + seed) * 2 - 1;
+                float3 compareVector = pointOffset - float3(x, y, z);
+                cellNoiseX[x] = dot(cellDirection, compareVector);
+            }
+            cellNoiseY[y] = lerp(cellNoiseX[0], cellNoiseX[1], interpolatorX);
+        }
+        cellNoiseZ[z] = lerp(cellNoiseY[0], cellNoiseY[1], interpolatorY);
+    }
+    return lerp(cellNoiseZ[0], cellNoiseZ[1], interpolatorZ);
+}
+float TilePerlin2D(float2 UV, uint scale, int seed = 0) {
+    UV *= scale;
+
+    //Works the same as Perlin1D but must be done in both the x and y axis
+    //Get the percentage distance (0 - 1) between the next and prev cell (on both the x and y)
+    float2 pointOffset = frac(UV);
+
+    //Generate random directions (2D inclines essentially) for the prev and next points (-1 to 1 on both axis)
+    float2 lowerLeftDirection = rand2d(seed + (float2(floor(UV.x), floor(UV.y)) + scale) % scale) * 2 - 1;
+    float2 lowerRightDirection = rand2d(seed + (float2(ceil(UV.x), floor(UV.y)) + scale) % scale) * 2 - 1;
+    float2 upperLeftDirection = rand2d(seed + (float2(floor(UV.x), ceil(UV.y)) + scale) % scale) * 2 - 1;
+    float2 upperRightDirection = rand2d(seed + (float2(ceil(UV.x), ceil(UV.y)) + scale) % scale) * 2 - 1;
+
+    //Get the vals of the point. Why the dot product? Because it gives a one dimensional output that acts like an average of the direction and the amount
+    float lowerLeftFunctionVal = dot(lowerLeftDirection, pointOffset);
+    float lowerRightFunctionVal = dot(lowerRightDirection, pointOffset - float2(1, 0));
+    float upperLeftFunctionVal = dot(upperLeftDirection, pointOffset - float2(0, 1));
+    float upperRightFunctionVal = dot(upperRightDirection, pointOffset - float2(1, 1));
+
+    //Find the values to interpolate wih for the x and y axis
+    float interpolatorX = smooth(pointOffset.x);
+    float interpolatorY = smooth(pointOffset.y);
+
+    //Interpolate between the x-axises of the top and bottom
+    float lowerCells = lerp(lowerLeftFunctionVal, lowerRightFunctionVal, interpolatorX);
+    float upperCells = lerp(upperLeftFunctionVal, upperRightFunctionVal, interpolatorY);
+
+    //lerp again with the top and bottom values by the y interpolator
+    return lerp(lowerCells, upperCells, interpolatorY);
+}
+float Perlin2D(float2 UV, int seed = 0) {
+    //Works the same as Perlin1D but must be done in both the x and y axis
+    //Get the percentage distance (0 - 1) between the next and prev cell (on both the x and y)
+    float2 pointOffset = frac(UV);
+
+    //Generate random directions (2D inclines essentially) for the prev and next points (-1 to 1 on both axis)
+    float2 lowerLeftDirection = rand2d(float2(floor(UV.x), floor(UV.y))) * 2 - 1;
+    float2 lowerRightDirection = rand2d(float2(ceil(UV.x), floor(UV.y))) * 2 - 1;
+    float2 upperLeftDirection = rand2d(float2(floor(UV.x), ceil(UV.y))) * 2 - 1;
+    float2 upperRightDirection = rand2d(float2(ceil(UV.x), ceil(UV.y))) * 2 - 1;
+
+    //Get the vals of the point. Why the dot product? Because it gives a one dimensional output that acts like an average of the direction and the amount
+    float lowerLeftFunctionVal = dot(lowerLeftDirection, pointOffset);
+    float lowerRightFunctionVal = dot(lowerRightDirection, pointOffset - float2(1, 0));
+    float upperLeftFunctionVal = dot(upperLeftDirection, pointOffset - float2(0, 1));
+    float upperRightFunctionVal = dot(upperRightDirection, pointOffset - float2(1, 1));
+
+    //Find the values to interpolate wih for the x and y axis
+    float interpolatorX = smooth(pointOffset.x);
+    float interpolatorY = smooth(pointOffset.y);
+
+    //Interpolate between the x-axises of the top and bottom
+    float lowerCells = lerp(lowerLeftFunctionVal, lowerRightFunctionVal, interpolatorX);
+    float upperCells = lerp(upperLeftFunctionVal, upperRightFunctionVal, interpolatorY);
+
+    //lerp again with the top and bottom values by the y interpolator
+    return lerp(lowerCells, upperCells, interpolatorY);
+}
+float2 VectorPerlin(float2 UV, int seed = 0) {
+    //Works the same as Perlin1D but must be done in both the x and y axis
+    //Get the percentage distance (0 - 1) between the next and prev cell (on both the x and y)
+    float2 pointOffset = frac(UV);
+
+    //Generate random directions (2D inclines essentially) for the prev and next points (-1 to 1 on both axis)
+    float2 lowerLeftDirection =  rand2d(float2(floor(UV.x), floor(UV.y))) * 2 - 1;
+    float2 lowerRightDirection = rand2d(float2(ceil(UV.x),  floor(UV.y))) * 2 - 1;
+    float2 upperLeftDirection =  rand2d(float2(floor(UV.x), ceil(UV.y)))  * 2 - 1;
+    float2 upperRightDirection = rand2d(float2(ceil(UV.x),  ceil(UV.y)))  * 2 - 1;
+
+    //Find the values to interpolate wih for the x and y directions
+    float interpolatorX = smooth(pointOffset.x);
+    float interpolatorY = smooth(pointOffset.y);
+
+    //Interpolate between the directions of the top and bottom
+    float2 lowerCells = lerp(lowerLeftDirection, lowerRightDirection, interpolatorX);
+    float2 upperCells = lerp(upperLeftDirection, upperRightDirection, interpolatorY);
+
+    //lerp again with the top and bottom values by the y interpolator
+    return lerp(lowerCells, upperCells, interpolatorY);
+}
+float Perlin1D(float U, int seed = 0) {
+
+    //Get the percentage distance (0 - 1) between the first and second cell
+    float pointOffset = frac(U);
+    //Uses the distance from cell one to cell two as an interpolator for the two inclines. Ease in and out makes the transition smoother
+    float interpolator = smooth(pointOffset);
+
+    //Grab the random incline (1d directions essentially) (-1 to 1) of the current cell.
+    float prevCellIncline = rand1d(floor(U) + seed) * 2 - 1;
+    //Grab the point's value off of the direction of the next inclination after a percentage of time to the next point
+    float prevCellPoint = prevCellIncline * pointOffset;
+
+    //Grab the next cell's random incline
+    float nextCellIncline = rand1d(ceil(U)) * 2 - 1;
+    /*Essentially aligns a point if it were to use the next incline, but at the same pos as the prev incline.
+    This is done to see the difference between the two inclines, so they can be smoothed out and lest jarring*/
+    float nextCellPoint = nextCellIncline * (pointOffset - 1);
+
+    //lerp with ease and out
+    return lerp(prevCellPoint, nextCellPoint, interpolator);
+}
+//Octaves version
+float TilePerlin3D(float3 UVW, uint scale, uint octaves, float persistance, float lacunarity, int seed = 0)
+{
+    //The final value before remapping to range -1 to 1
+    float noiseSum = 0;
+    //The strength of the current octave
+    float amplitude = 1;
+    //The frequency of the the current octave
+    float frequency = 1;
+    //Stores the largest value possible in the noise. Divides by it later for a -1 to 1 range
+    float maxVal = 0;
+
+    //Loop through each octave (layer)
+    for (uint octave = 0; octave < octaves; octave++)
+    {
+        //Sample noise and change values accordingly
+        noiseSum += TilePerlin3D(UVW, scale * frequency, seed + rand1d(octave)) * amplitude;
+        maxVal += amplitude;
+        amplitude *= persistance;
+        frequency *= lacunarity;
+    }
+    //Divide by maxVal to remap values to expected range
+    return noiseSum / maxVal;
+}
+#endif
